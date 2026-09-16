@@ -67,6 +67,13 @@ jest.mock('test/__fixtures__/esm-template/index.mjs', () => {
   err.code = 'ERR_REQUIRE_ESM'
   throw err
 }, { virtual: true })
+// ESM template with top-level await: require() throws ERR_REQUIRE_ASYNC_MODULE, so install.js
+// must also fall back to dynamic import (resolves the real fixture esm-template-async/index.mjs).
+jest.mock('test/__fixtures__/esm-template-async/index.mjs', () => {
+  const err = new Error('require() cannot be used on an ESM graph with top-level await')
+  err.code = 'ERR_REQUIRE_ASYNC_MODULE'
+  throw err
+}, { virtual: true })
 // template whose require() throws a non-ESM error, which must propagate
 jest.mock('my-adobe-throw-path', () => { throw new Error('boom-require') }, { virtual: true })
 
@@ -190,6 +197,21 @@ describe('run', () => {
 
     await expect(command.run()).resolves.toBeUndefined()
     // the ESM default export (the generator class), not the module namespace, must be instantiated
+    expect(yeomanEnvInstantiate).toHaveBeenCalledWith(expect.any(Function), { options: { 'skip-prompt': false, force: true } })
+    expect(yeomanEnvRunGenerator).toHaveBeenCalled()
+  })
+
+  test('runs an ESM template with top-level await (require throws ERR_REQUIRE_ASYNC_MODULE, loads via dynamic import)', async () => {
+    const templateName = 'my-adobe-async-esm-template'
+    command.argv = [templateName]
+
+    readPackageJson.mockResolvedValueOnce({
+      dependencies: {
+        [templateName]: '^1.0.0'
+      }
+    })
+
+    await expect(command.run()).resolves.toBeUndefined()
     expect(yeomanEnvInstantiate).toHaveBeenCalledWith(expect.any(Function), { options: { 'skip-prompt': false, force: true } })
     expect(yeomanEnvRunGenerator).toHaveBeenCalled()
   })

@@ -76,7 +76,10 @@ class InstallCommand extends BaseCommand {
     try {
       templateModule = require(templatePath)
     } catch (e) {
-      if (e.code === 'ERR_REQUIRE_ESM') {
+      // ERR_REQUIRE_ESM: Node without require(esm). ERR_REQUIRE_ASYNC_MODULE: newer Node can
+      // require() ESM synchronously, but an ESM template (or anything in its import graph) that
+      // uses top-level await must be loaded via import(). Handle both by falling back to import().
+      if (e.code === 'ERR_REQUIRE_ESM' || e.code === 'ERR_REQUIRE_ASYNC_MODULE') {
         templateModule = await import(pathToFileURL(templatePath).href)
       } else {
         throw e
